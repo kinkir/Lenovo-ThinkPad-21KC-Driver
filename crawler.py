@@ -2,6 +2,17 @@
 """
 Lenovo ThinkPad driver crawler and preserver.
 Downloads driver updates and preserves them in GitHub releases.
+
+Checksum Verification Policy:
+    - Strict verification for executables (.exe), firmware, and other binary files
+    - Lenient verification for documentation files (.txt, .html)
+
+    Rationale: Lenovo frequently updates readme/documentation files when adding
+    support for new machine types, but fails to update the corresponding SHA256
+    checksums in the metadata XML files. ThinkVantage System Update (TVSU) only
+    verifies checksums for executable components, not documentation. We follow
+    the same approach to avoid spurious failures while maintaining security for
+    actual driver/firmware files.
 """
 import hashlib
 import io
@@ -75,12 +86,35 @@ def compute_sha256(content: bytes) -> str:
     return hashlib.sha256(content).hexdigest().upper()
 
 
-def verify_checksum(content: bytes, expected: str, name: str) -> bool:
-    """Verify content checksum matches expected value."""
+def verify_checksum(content: bytes, expected: str, name: str, strict: bool = True) -> bool:
+    """
+    Verify content checksum matches expected value.
+
+    Args:
+        content: File content to verify
+        expected: Expected SHA256 checksum
+        name: File name for logging
+        strict: If True, checksum mismatch is an error. If False, only a warning.
+
+    Returns:
+        True if checksum matches or if non-strict mode, False otherwise.
+
+    Note on non-strict mode:
+        Lenovo frequently updates readme files (.txt, .html) for packages without
+        updating the corresponding checksums in metadata XML files. This appears to
+        happen when they add support for new machine types and revise documentation.
+        ThinkVantage System Update (TVSU) only verifies checksums for executable files,
+        not documentation files, so we follow the same approach to avoid false failures.
+    """
     actual = compute_sha256(content)
     if actual != expected.upper():
-        logger.error(f"Checksum mismatch for {name}: expected {expected}, got {actual}")
-        return False
+        if strict:
+            logger.error(f"Checksum mismatch for {name}: expected {expected}, got {actual}")
+            return False
+        else:
+            logger.warning(f"Checksum mismatch for {name}: expected {expected}, got {actual}")
+            logger.warning(f"Ignoring checksum mismatch for documentation file {name}")
+            return True
     return True
 
 
@@ -226,7 +260,11 @@ def download_and_upload_file(release: dict, file_info: dict) -> bool:
         return False
 
     # Verify checksum
-    if not verify_checksum(content, expected_crc, name):
+    # Use non-strict mode for documentation files (.txt, .html) as Lenovo
+    # frequently updates these without updating checksums in metadata
+    file_ext = name.lower().split('.')[-1] if '.' in name else ''
+    is_documentation = file_ext in ['txt', 'html']
+    if not verify_checksum(content, expected_crc, name, strict=not is_documentation):
         return False
 
     # Upload to release with retry
