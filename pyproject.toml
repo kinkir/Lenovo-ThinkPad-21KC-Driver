@@ -1,0 +1,9 @@
+[project]
+name = "lenovo-driver-crawler"
+version = "1.0.0"
+description = "Lenovo ThinkPad driver update crawler and preserver"
+requires-python = ">=3.14"
+dependencies = [
+    "requests>=2.31.0",
+    "pyyaml>=6.0.0",
+]

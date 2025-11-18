@@ -1,0 +1,37 @@
+name: Update Drivers
+
+on:
+  schedule:
+    - cron: '17 * * * *'  # Every hour at :17
+  workflow_dispatch:      # Allow manual trigger
+
+concurrency:
+  group: driver-update
+  cancel-in-progress: false  # Let running jobs complete
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    timeout-minutes: 55  # 55min max (cron is 60min interval)
+
+    permissions:
+      contents: write  # For creating tags and releases
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+
+      - name: Setup Python
+        run: uv python install 3.14
+
+      - name: Install dependencies
+        run: uv sync
+
+      - name: Run crawler
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: uv run python crawler.py
