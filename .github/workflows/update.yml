@@ -2,7 +2,8 @@ name: Update Drivers
 
 on:
   schedule:
-    - cron: '17 * * * *'  # Every hour at :17
+    #- cron: '17 * * * *'  # Every hour at :17
+    0 0 8 ? * WED
   workflow_dispatch:      # Allow manual trigger
 
 concurrency:
