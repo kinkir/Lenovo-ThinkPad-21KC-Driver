@@ -1,5 +1,5 @@
 # Lenovo driver crawler configuration
 # Change these values to track a different machine type or OS
 
-machine_type: "20UA"
+machine_type: "21KC"
 os: "Win11"
